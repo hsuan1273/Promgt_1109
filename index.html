@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🚀 AI Prompt 智能寶庫</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Noto Sans TC -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans TC"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0070f3',
+              600: '#0061d5',
+            },
+            purpleBorder: '#9333ea',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar for Prompt Text Box */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen pb-16">
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed top-5 right-5 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-300 ease-in-out bg-slate-800 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+    <i class="fa-solid fa-circle-check text-green-400 text-lg"></i>
+    <span id="toast-message">已成功複製 Prompt！</span>
+  </div>
+
+  <!-- Settings Modal (For custom Google Sheet URL) -->
+  <div id="settings-modal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 relative animate-fade-in">
+      <button onclick="toggleSettingsModal(false)" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="flex items-center gap-3 text-purple-700">
+        <i class="fa-solid fa-gear text-2xl"></i>
+        <h3 class="text-xl font-bold">Google Sheet 連動設定</h3>
+      </div>
+      <p class="text-sm text-gray-600">
+        請貼上您的 Google 試算表連結（請確保共用設定為「知道連結的人皆可檢視」）。
+      </p>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Google Sheet URL / CSV URL</label>
+        <input type="text" id="sheet-url-input" class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="https://docs.google.com/spreadsheets/d/...">
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="resetDefaultSheet()" class="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition">重設為預設</button>
+        <button onclick="saveAndFetchSheet()" class="px-4 py-2 text-sm text-white bg-purple-600 hover:bg-purple-700 rounded-xl shadow-md transition flex items-center gap-2">
+          <i class="fa-solid fa-arrows-rotate"></i> 儲存並重新同步
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+
+    <!-- Header Section -->
+    <header class="text-center space-y-4 mb-8">
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight flex items-center justify-center gap-2">
+        <span>🚀</span> AI Prompt 智能寶庫
+      </h1>
+      <div class="flex items-center justify-center gap-3">
+        <a id="sheet-link" href="https://docs.google.com/spreadsheets/d/1NjrCJik856IVSXLLcRSMe_YNtFca3c69KsiTq5CGtUY/edit?gid=1480282197#gid=1480282197" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 bg-white px-4 py-1.5 rounded-full border border-gray-200 shadow-sm hover:shadow transition">
+          <i class="fa-regular fa-file-excel text-green-600"></i>
+          <span>開啟原始資料 Google Sheet</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-xs text-gray-400"></i>
+        </a>
+        <button onclick="fetchDataFromSheet()" title="重新整頁數值連動" class="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-purple-600 hover:shadow transition">
+          <i id="sync-icon" class="fa-solid fa-arrows-rotate"></i>
+        </button>
+        <button onclick="toggleSettingsModal(true)" title="修改 Google Sheet 連結" class="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-purple-600 hover:shadow transition">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Search Input -->
+    <div class="max-w-xl mx-auto mb-6">
+      <div class="relative">
+        <span class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </span>
+        <input 
+          type="text" 
+          id="search-input"
+          oninput="handleSearch()"
+          placeholder="搜尋提示詞..." 
+          class="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-full text-gray-800 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
+        >
+      </div>
+    </div>
+
+    <!-- Category Filter Pills -->
+    <div class="flex flex-wrap justify-center gap-2 mb-10 max-w-4xl mx-auto" id="category-container">
+      <!-- Categories dynamically rendered here -->
+    </div>
+
+    <!-- Main Section Header -->
+    <div class="flex items-center justify-between border-b border-gray-200 pb-4 mb-6">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">🧠</span>
+        <h2 id="current-category-title" class="text-xl font-bold text-gray-800">全部 AI 協思 Prompt</h2>
+        <span id="prompt-count" class="ml-2 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">0 個</span>
+      </div>
+      <div id="sync-status" class="text-xs text-gray-400 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+        <span>資料已連動</span>
+      </div>
+    </div>
+
+    <!-- Loading Skeleton State -->
+    <div id="loading-state" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <template id="skeleton-template">
+        <div class="bg-white rounded-2xl border-t-4 border-gray-200 p-5 shadow-sm space-y-3 animate-pulse">
+          <div class="h-4 bg-gray-200 rounded w-1/3"></div>
+          <div class="h-6 bg-gray-200 rounded w-2/3"></div>
+          <div class="h-40 bg-gray-100 rounded"></div>
+          <div class="h-10 bg-gray-200 rounded"></div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Empty Results View -->
+    <div id="empty-state" class="hidden text-center py-16 bg-white rounded-3xl border border-dashed border-gray-300">
+      <div class="text-5xl mb-3">🔍</div>
+      <h3 class="text-lg font-semibold text-gray-700">找不到相符的提示詞</h3>
+      <p class="text-sm text-gray-500 mt-1">請嘗試變更搜尋關鍵字或選擇其他分類標籤。</p>
+    </div>
+
+    <!-- Cards Grid -->
+    <div id="cards-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- Prompt Cards dynamically inserted here -->
+    </div>
+
+  </div>
+
+  <script>
+    // Initial Default Google Sheet ID & GID
+    const DEFAULT_SHEET_ID = '1NjrCJik856IVSXLLcRSMe_YNtFca3c69KsiTq5CGtUY';
+    const DEFAULT_GID = '1480282197';
+
+    // Default Fallback Data matching the prompt screen image
+    const fallbackPrompts = [
+      {
+        category: '內容創作',
+        title: '意義單詞',
+        content: `將文章的重點部分，尋找一個代表性英文字母，並使這些字母的首字組合成一個具有意義的單詞（如「VISION」）`
+      },
+      {
+        category: '內容創作',
+        title: '品牌名稱',
+        content: `完成 ChatGPT 角色定義後，依據「品牌定義」與「產品介紹」發想5個產品名稱與標語（口號）。\n- 提示詞指令：描述品牌與產品，請列出數字 個產品名稱與行銷標語建議。（*品牌定義*描述、*產品介紹*描述）\n- Prompt\n- 我推出一個運動鞋品牌，今年會銷售一款新型跑步`
+      },
+      {
+        category: '筆記精煉',
+        title: '長篇文章',
+        content: `為這一篇長篇文章，進行以下四個步驟，每一個步驟都要提供給文章與標示出來：\n第1、請為這篇文件生成一份簡短摘要。\n第2、請基於上一份摘要，不要遺漏任何專有名詞、數字或關鍵人物，重新生成一份摘要。\n第3、現在，請將摘要中每一句話都濃縮成更潤澤的表達，同時保留`
+      },
+      {
+        category: '筆記精煉',
+        title: '書籍精煉',
+        content: `請對 @[檔名]\n啟動【終極煉金管線】，一次執行四步驟整合：\n第一步：全域架構導航 (Stage 01) 執行 stage-1-navigator，對精煉稿進行深度掃描，產出知識地圖與反直覺預警。\n存檔：01_Map_[主題簡稱].md。\n第二步：價值 DNA 診斷 (Stage 02)`
+      },
+      {
+        category: '筆記精煉',
+        title: '書籍精煉',
+        content: `提取練習：\n\n我剛讀完了關於 [填入具體段落標題] 的內容。現在請幫我進行深度研磨：\n\n1-底層邏輯拷問：針對這段內容的「運作原理」向我提問，測試我是否理解了「為什麼有效」，而非只是記住步驟。\n\n2-隱喻轉化：如果這段概念有極簡`
+      },
+      {
+        category: '筆記精煉',
+        title: '提取練習',
+        content: `我剛讀完了關於 [填入具體段落標題] 的內容。現在請幫我進行深度研磨：\n\n1-底層邏輯拷問：針對這段內容的「運作原理」向我提問，測試我是否理解了「為什麼有效」，而非只是記住步驟。\n\n2-隱喻轉化：如果這段概念有極簡`
+      },
+      {
+        category: '內容創作',
+        title: '影片清理',
+        content: `你的角色是一位「逐字稿校對員」，不是編輯。\n任務：\n1-僅刪除口語填充詞、重複說法、明顯贅詞\n2-不得改寫句型、不得改變原意、不得加入新解釋\n規則：\n1-原句順序必須完全一致\n2-若刪除任何詞語，需確保前後銜`
+      },
+      {
+        category: '內容創作',
+        title: '影片清理',
+        content: `你的角色是一位「內容結構化整理員」，不是編輯、不是評論者。\n\n我會提供一段約 4000 字的影片內文字內容，請你在完全保留原作者語意與立場的前提下，\n進行「保留語意的濃縮」，將內容壓縮至 約 2000 字。全文用繁體中文呈現。`
+      }
+    ];
+
+    let allPrompts = [];
+    let currentCategory = '全部';
+    let searchQuery = '';
+
+    // Initialize application
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSavedSheetUrl();
+      fetchDataFromSheet();
+    });
+
+    function getCsvExportUrl(urlOrId) {
+      if (!urlOrId) return `https://docs.google.com/spreadsheets/d/${DEFAULT_SHEET_ID}/export?format=csv&gid=${DEFAULT_GID}`;
+      if (urlOrId.includes('export?format=csv')) return urlOrId;
+      
+      const match = urlOrId.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (match && match[1]) {
+        const sheetId = match[1];
+        const gidMatch = urlOrId.match(/gid=([0-9]+)/);
+        const gid = gidMatch ? gidMatch[1] : '0';
+        return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+      }
+      return urlOrId;
+    }
+
+    // Fetch data with live feedback
+    async function fetchDataFromSheet() {
+      const syncIcon = document.getElementById('sync-icon');
+      const syncStatus = document.getElementById('sync-status');
+      
+      syncIcon.classList.add('fa-spin');
+      syncStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-yellow-500 inline-block animate-ping"></span> <span>連動同步中...</span>`;
+
+      const sheetUrlInput = localStorage.getItem('custom_sheet_url') || `https://docs.google.com/spreadsheets/d/${DEFAULT_SHEET_ID}/edit?gid=${DEFAULT_GID}`;
+      const csvUrl = getCsvExportUrl(sheetUrlInput);
+
+      try {
+        const response = await fetch(csvUrl);
+        if (!response.ok) throw new Error('HTTP status ' + response.status);
+        const csvText = await response.text();
+        const parsedData = parseCSV(csvText);
+
+        if (parsedData && parsedData.length > 0) {
+          allPrompts = parsedData;
+          syncStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span> <span>已即時連動 Google Sheet</span>`;
+        } else {
+          throw new Error('解析資料為空');
+        }
+      } catch (error) {
+        console.warn('無法連動 Live Google Sheet，使用備份數值與本地資料:', error);
+        allPrompts = fallbackPrompts;
+        syncStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span> <span>已載入展示資料 (點擊齒輪設定)</span>`;
+      } finally {
+        syncIcon.classList.remove('fa-spin');
+        renderCategories();
+        renderCards();
+      }
+    }
+
+    // Parse CSV Text to JSON Objects
+    function parseCSV(text) {
+      const lines = text.split(/\r\n|\n/);
+      if (lines.length < 2) return [];
+
+      const result = [];
+      const headers = parseCSVLine(lines[0]);
+
+      // Detect header indexes
+      let catIdx = headers.findIndex(h => /分類|標籤|類別|category/i.test(h));
+      let titleIdx = headers.findIndex(h => /標題|名稱|title|name/i.test(h));
+      let contentIdx = headers.findIndex(h => /提示詞|內容|prompt|content/i.test(h));
+
+      if (catIdx === -1) catIdx = 0;
+      if (titleIdx === -1) titleIdx = 1;
+      if (contentIdx === -1) contentIdx = 2;
+
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const row = parseCSVLine(lines[i]);
+        if (row.length > 0) {
+          const category = row[catIdx] ? row[catIdx].trim() : '一般';
+          const title = row[titleIdx] ? row[titleIdx].trim() : '無標題';
+          const content = row[contentIdx] ? row[contentIdx].trim() : '';
+
+          if (title || content) {
+            allPrompts.push();
+            result.push({ category, title, content });
+          }
+        }
+      }
+      return result;
+    }
+
+    // Parse single CSV line respecting quotes
+    function parseCSVLine(line) {
+      const values = [];
+      let current = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.replace(/^"|"$/g, '').trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.replace(/^"|"$/g, '').trim());
+      return values;
+    }
+
+    // Render Categories Tags
+    function renderCategories() {
+      const categoriesSet = new Set(allPrompts.map(p => p.category).filter(Boolean));
+      const categories = ['全部', ...Array.from(categoriesSet)];
+      
+      const container = document.getElementById('category-container');
+      container.innerHTML = categories.map(cat => {
+        const isActive = cat === currentCategory;
+        const activeClass = isActive 
+          ? 'bg-blue-600 text-white font-medium shadow-md scale-105' 
+          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100 hover:text-gray-900';
+        
+        return `<button 
+          onclick="selectCategory('${cat}')" 
+          class="px-4 py-2 rounded-full text-sm transition-all duration-200 cursor-pointer ${activeClass}"
+        >${cat}</button>`;
+      }).join('');
+    }
+
+    // Category filter click handler
+    function selectCategory(cat) {
+      currentCategory = cat;
+      document.getElementById('current-category-title').innerText = `${cat === '全部' ? '全部 AI 協思 Prompt' : cat}`;
+      renderCategories();
+      renderCards();
+    }
+
+    // Search input handler
+    function handleSearch() {
+      searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+      renderCards();
+    }
+
+    // Render Cards Grid
+    function renderCards() {
+      const grid = document.getElementById('cards-grid');
+      const emptyState = document.getElementById('empty-state');
+      const promptCountEl = document.getElementById('prompt-count');
+
+      // Filter logic
+      const filtered = allPrompts.filter(item => {
+        const matchesCat = currentCategory === '全部' || item.category === currentCategory;
+        const matchesSearch = !searchQuery || 
+          item.title.toLowerCase().includes(searchQuery) || 
+          item.content.toLowerCase().includes(searchQuery) ||
+          item.category.toLowerCase().includes(searchQuery);
+        return matchesCat && matchesSearch;
+      });
+
+      promptCountEl.innerText = `${filtered.length} 個`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      grid.innerHTML = filtered.map((item, index) => `
+        <div class="bg-white rounded-2xl border-t-4 border-purpleBorder p-5 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between h-[360px] group">
+          
+          <div>
+            <!-- Tag Badge -->
+            <div class="mb-2">
+              <span class="inline-block bg-blue-50 text-blue-500 text-xs font-semibold px-2.5 py-1 rounded-md">
+                ${escapeHtml(item.category)}
+              </span>
+            </div>
+            
+            <!-- Card Title -->
+            <h3 class="text-lg font-bold text-gray-900 mb-3 line-clamp-1 group-hover:text-purple-700 transition-colors">
+              ${escapeHtml(item.title)}
+            </h3>
+
+            <!-- Prompt Box -->
+            <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm text-gray-600 leading-relaxed custom-scrollbar overflow-y-auto h-[180px] whitespace-pre-wrap select-text">
+              ${escapeHtml(item.content)}
+            </div>
+          </div>
+
+          <!-- Copy Button -->
+          <div class="pt-4">
+            <button 
+              onclick="copyPrompt(\`${escapeJsString(item.content)}\`)"
+              class="w-full py-2.5 px-4 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-xl shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center gap-2 active:scale-98"
+            >
+              <i class="fa-regular fa-copy"></i>
+              <span>複製 Prompt</span>
+            </button>
+          </div>
+
+        </div>
+      `).join('');
+    }
+
+    // Copy Prompt Function with Fallback
+    function copyPrompt(text) {
+      if (!text) return;
+
+      // Create a temporary textarea to hold the text
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+
+      try {
+        document.execCommand('copy');
+        showToast('已成功複製 Prompt！');
+      } catch (err) {
+        console.error('複製失敗：', err);
+        showToast('複製失敗，請手動選取文字');
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+
+    // Toast Notification Display
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-message');
+      toastMsg.innerText = msg;
+
+      toast.classList.remove('translate-y-[-100px]', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-[-100px]', 'opacity-0');
+      }, 2500);
+    }
+
+    // Modal Control & LocalStorage
+    function toggleSettingsModal(show) {
+      const modal = document.getElementById('settings-modal');
+      if (show) {
+        modal.classList.remove('hidden');
+        document.getElementById('sheet-url-input').value = localStorage.getItem('custom_sheet_url') || '';
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function saveAndFetchSheet() {
+      const val = document.getElementById('sheet-url-input').value.trim();
+      if (val) {
+        localStorage.setItem('custom_sheet_url', val);
+        document.getElementById('sheet-link').href = val;
+      }
+      toggleSettingsModal(false);
+      fetchDataFromSheet();
+    }
+
+    function resetDefaultSheet() {
+      localStorage.removeItem('custom_sheet_url');
+      const defaultUrl = `https://docs.google.com/spreadsheets/d/${DEFAULT_SHEET_ID}/edit?gid=${DEFAULT_GID}#gid=${DEFAULT_GID}`;
+      document.getElementById('sheet-url-input').value = defaultUrl;
+      document.getElementById('sheet-link').href = defaultUrl;
+      toggleSettingsModal(false);
+      fetchDataFromSheet();
+    }
+
+    function loadSavedSheetUrl() {
+      const saved = localStorage.getItem('custom_sheet_url');
+      if (saved) {
+        document.getElementById('sheet-link').href = saved;
+      }
+    }
+
+    // Helper functions for safely rendering strings
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function escapeJsString(str) {
+      if (!str) return '';
+      return str.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\${/g, '\\${');
+    }
+  </script>
+</body>
+</html>
